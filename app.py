@@ -28,21 +28,62 @@ def inference(model_inputs:dict) -> dict:
     global model
     global tokenizer
 
-    # Parse out your arguments
+    # Prompt is a required argument.
     prompt = model_inputs.get('prompt', None)
     if prompt == None:
         return {'message': "No prompt provided"}
-    
+
     # Tokenize inputs
     input_tokens = tokenizer.encode(prompt, return_tensors="pt").to(device)
+    token_count = input_tokens.size(dim=1)
 
-    # Run the model
-    output = model.generate(input_tokens)
+    # (Optional) Max Token Length
+    max_tokens = model_inputs.get('max_tokens', 256)
+    if token_count + max_tokens  > 2048:
+        return {'message': "Max token length exceeded"}
 
-    # Decode output tokens
-    output_text = tokenizer.batch_decode(output, skip_special_tokens = True)[0]
+    # Optional: Temperature
+    temperature = model_inputs.get('temperature', 0.8)
 
-    result = {"output": output_text}
+    # Optional: Top P
+    top_p = model_inputs.get('top_p', 0.7)
 
-    # Return the results as a dictionary
-    return result
+    # Optional: Top K
+    top_k = model_inputs.get('top_k', 0)
+
+    # Optional: Number of Generations
+    n = model_inputs.get('n', 1)
+
+    # Optional: Return the prompt in the response
+    include_prompt = model_inputs.get('include_prompt', False)
+
+    # Optional: Stop sequences
+    stop_sequences = model_inputs.get('stop_sequences', [])
+
+    # Perform the inference.
+    outputs = []
+    for _ in range(n):
+        output = model.generate(
+            input_tokens,
+            max_length=token_count + max_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            top_k=top_k,
+            do_sample=True,
+        )
+        text = tokenizer.batch_decode(output, skip_special_tokens = True)[0]
+
+        # If we don't want to include the prompt in the output, remove it.
+        if not include_prompt:
+            text = text[len(prompt):]
+
+        # If we have any stop sequences, truncate the output.
+        for stop in stop_sequences:
+            if stop in text:
+                text = text[:text.index(stop)]
+
+        # Finally, we can append this as a valid output.
+        outputs.append(text)
+
+    # Return the outputs as a JSON object.
+    return {'outputs': outputs}
