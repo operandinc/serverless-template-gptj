@@ -51,4 +51,4 @@ View deployment progress on [our dashboard](https://app.banana.dev)
 
 <br>
 
-## Use Banana for scale.
+## Use Banana for scale. :)
